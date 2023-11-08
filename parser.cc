@@ -53,149 +53,6 @@ Token Parser::expect(TokenType expected_type)
     return t;
 }
 
-//function to parse a provided rule_list
-//Rule-list -> Rule Rule-list | Rule
-void Parser::parse_rule_list()
-{
-	parse_rule();
-
-	//store next token in list
-    Token t = lexer.peek(1);
-
-    //check if token type is ID since Rules always start with ID
-    if(t.token_type == ID)
-    {
-        parse_rule_list();
-    }
-
-}
-
-//function to parse a provided rule
-//Rule → ID ARROW Right-hand-side STAR
-void Parser::parse_rule()
-{
-	//store next token in list
-    Token t = lexer.peek(1);
-
-	//store LHS grammar rule into the string
-	Rule.LHS = t.lexeme;
-
-	//add the parsed symbol to the order list
-    Rule.parsedOrder.push_back(Rule.LHS);
-
-	if (Rule.T.find(t.lexeme) != Rule.T.end()) 
-	{
-        // Add it to NT set
-        Rule.NT.insert(t.lexeme);
-
-        // Remove it from T set
-        Rule.T.erase(t.lexeme);
-
-    } 
-	else 
-	{
-        // If the LHS token is not a terminal, add it to both NT and RHS sets
-        Rule.NT.insert(t.lexeme);
-
-    }
-	
-	//consume ID, maybe its because im calling a parser object declared at the top of the file?
-    parser.expect(ID);
-
-	//consume ARROW
-	parser.expect(ARROW);
-
-	//clear RHS vector to start fresh
-    Rule.RHS.clear();
-
-	//parse RHS
-	parse_rhs();
-
-	//CONSUME STAR
-	parser.expect(STAR);
-
-	//add the parsed rule to the ruleMap
-    Rule.ruleMap[Rule.LHS].push_back(Rule.RHS);
-}
-
-//function to parse the right hand side of a given grammar
-//Right-hand-side → Id-list | epsilon
-//Id-list → ID Id-list | ID
-void Parser::parse_rhs()
-{
-	Token t = lexer.peek(1);
-
-	//check if we need to parse id list
-	if(t.token_type == ID)
-	{
-		parse_id_list();
-	}
-	//if epsilon
-	else
-	{
-		return;
-	}
-}
-
-//function to parse a given id list
-//Id-list → ID Id-list | ID
-void Parser::parse_id_list()
-{
-	//peek for token
-	Token t = lexer.peek(1);
-
-	//initialize a vector to store the RHS for the current rule
-    vector<Token> tokenVector;
-    
-    //store the first ID in the token vector
-    //tokenVector.push_back(t);
-
-	//after RHS and LHS is initialized for a given rule initialize it to rule map
-	Rule.RHS.push_back(t);
-
-	//add the parsed symbol to the order list
-    Rule.parsedOrder.push_back(t.lexeme);
-
-	//check if the rule exists in the non terminal list
-	// Check if the token is in NT
-    if (Rule.NT.find(t.lexeme) != Rule.NT.end()) 
-	{
-		//remove it from the set of terminals
-        Rule.T.erase(t.lexeme);  
-    } 
-	else 
-	{
-		//add to the set of terminals
-        Rule.T.insert(t.lexeme);
-    }
-	
-	//consume ID
-	expect(ID);
-
-	// Add the token vector to the RHS
-    //Rule.RHS.push_back(tokenVector);
-
-	// Check if the rule exists in the non-terminal list
-    if (Rule.NT.find(t.lexeme) == Rule.NT.end()) {
-        // Add to the set of terminals
-        Rule.T.insert(t.lexeme);
-    }
-
-	//store next token in list
-    t = lexer.peek(1);
-
-    //check if next token in list is an ID list
-    if(t.token_type == ID)
-    {	
-		parse_id_list();
-    }
-    else
-    {
-        return;
-    }
-
-}
-
 //program -> var_section body inputs
 void Parser::parse_program()
 {
@@ -311,7 +168,244 @@ void Parser::parse_stmt()
 //assign_stmt -> ID EQUAL expr SEMICOLON
 void Parser::parse_assignStmt()
 {
+	expect(ID);
 
+	expect(EQUAL);
+
+	//always parse a primary
+	parse_primary();
+
+	//peek to see if we need to parse an expression
+	Token t = lexer.peek(1);
+
+	//check if there is an operator (meaning you are parsing an expression)
+	if(t.token_type == PLUS || t.token_type == MINUS || t.token_type == MULT || t.token_type == DIV)
+	{
+		//parse the rest of the expr
+		parse_op();
+
+		parse_primary();
+	}
+
+	expect(SEMICOLON);
+}
+
+//expr -> primary op primary
+void Parser::parse_expr()
+{
+	parse_primary();
+
+	parse_op();
+
+	parse_primary();
+}
+
+//primary -> ID | NUM
+void Parser::parse_primary()
+{
+	Token t = lexer.peek(1);
+
+	if(t.token_type == ID)
+	{
+		expect(ID);
+	}
+	else
+	{
+		//otherwise expect a num and if its not it will syntax error
+		expect(NUM);
+	}
+}
+
+//op -> PLUS | MINUS | MULT | DIV
+void Parser::parse_op()
+{
+	Token t = lexer.peek(1);
+
+	//check if there is an operator (meaning you are parsing an expression)
+	if(t.token_type == MINUS)
+	{
+		expect(MINUS);
+	}
+	else if(t.token_type == PLUS)
+	{
+		expect(PLUS);
+	}
+	else if(t.token_type == MULT)
+	{
+		expect(MULT);
+	}
+	else
+	{
+		expect(DIV);
+	}
+}
+
+//output_stmt -> output ID SEMICOLON
+void Parser::parse_outputStmt()
+{
+	expect(OUTPUT);
+
+	expect(ID);
+
+	expect(SEMICOLON);
+}
+
+//input_stmt -> input ID SEMICOLON
+void Parser::parse_inputStmt()
+{
+	expect(INPUT);
+
+	expect(ID);
+
+	expect(SEMICOLON);
+}
+
+//while_stmt -> while condition body
+void Parser::parse_whileStmt()
+{
+	expect(WHILE);
+
+	parse_condition();
+
+	parse_body();
+}
+
+//if_stmt -> IF condition body
+void Parser::parse_ifStmt()
+{
+	expect(IF);
+
+	parse_condition();
+
+	parse_body();
+}
+
+//condition -> primary relop primary
+void Parser::parse_condition()
+{
+	parse_primary();
+
+	parse_relop();
+
+	parse_primary();
+}
+
+//relop -> GREATER | LESS | NOTEQUAL
+void Parser::parse_relop()
+{
+	Token t = lexer.peek(1);
+
+	if(t.token_type == GREATER)
+	{
+		expect(GREATER);
+	}
+	else if(t.token_type == LESS)
+	{
+		expect(LESS);
+	}
+	else
+	{
+		expect(NOTEQUAL);
+	}
+}
+
+//switch_stmt -> SWITCH ID LBRACE case_list RBRACE
+//switch_stmt -> SWITCH ID LBRACE case_list default_case RBRACE
+void Parser::parse_switchStmt()
+{
+	expect(SWITCH);
+
+	expect(ID);
+
+	expect(LBRACE);
+
+	parse_caseList();
+
+	Token t = lexer.peek(1);
+
+	if(t.token_type == DEFAULT)
+	{
+		parse_defaultCase();
+	}
+
+	expect(RBRACE);
+}
+
+//for_stmt -> FOR LPAREN assign_stmt condition SEMICOLON assign_stmt RPAREN body
+void Parser::parse_forStmt()
+{
+	expect(FOR);
+
+	expect(LPAREN);
+
+	parse_assignStmt();
+
+	parse_condition();
+
+	expect(SEMICOLON);
+
+	parse_assignStmt();
+
+	expect(RPAREN);
+
+	parse_body();
+}
+
+//case_list -> case case_list | case
+void Parser::parse_caseList()
+{
+	parse_case();
+
+	Token t = lexer.peek(1);
+
+	//check if there is a case_list
+	if(t.token_type == CASE)
+	{
+		parse_caseList();
+	}
+}
+
+//case -> CASE NUM COLON body
+void Parser::parse_case()
+{
+	expect(CASE);
+
+	expect(NUM);
+
+	expect(COLON);
+
+	parse_body();
+}
+
+//default_case -> DEFAULT COLON body
+void Parser::parse_defaultCase()
+{
+	expect(DEFAULT);
+
+	expect(COLON);
+
+	parse_body();
+}
+
+//inputs -> num_list
+void Parser::parse_inputs()
+{
+	parse_numList();
+}
+
+//num_list -> NUM
+//num_list -> NUM num_list
+void Parser::parse_numList()
+{
+	expect(NUM);
+
+	Token t = lexer.peek(1);
+
+	//check if there is a num_list
+	if(t.token_type == NUM)
+	{
+		parse_numList();
+	}
 }
 
 int main (int argc, char* argv[])
