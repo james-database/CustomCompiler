@@ -3,7 +3,7 @@
  * Professor: Rida Bazzi
  * SID: 1222771693
  * Course: CSE 340
- * 
+ *
  * Copyright (C) Mohsen Zohrevandi, 2017
  *               Rida Bazzi 2019
  * Do not share this file with anyone
@@ -14,25 +14,85 @@
 #include <cstdlib>
 #include "lexer.h"
 #include "parser.h"
+#include "execute.h"
 #include <unordered_map>
 #include <set>
 #include <stack>
 #include <string>
 #include <set>
 #include <map>
+#include <vector>
 #include <iomanip>
 #include <algorithm>
 
 using namespace std;
 
-//initialize lexer object
+// vector to store the values assigned in the input
+vector<int> inputs;
+
+struct LinkedList
+{
+	struct InstructionNode* instruction;
+	struct InstructionNode* nextInstruction;
+};
+
+struct AssignmentInstruction
+{
+	int left_hand_side_index;
+	int opernd1_index;
+	int opernd2_index;
+
+	// operator
+	ArithmeticOperatorType op;
+};
+
+struct InstructionNode
+{
+	// ENUM -- NOOP, ASSIGN, JMP, CJMP (conditional jump), IN, OUT
+
+	InstructionType type; 
+
+	union
+	{
+		struct
+		{
+			int left_hand_side_index;
+			int opernd1_index;
+			int opernd2_index;
+			ArithmeticOperatorType op;
+		} assign_inst;
+
+		struct
+		{
+			// details below ???
+		} jmp_inst;
+
+		struct
+		{
+			// details below ????   conditional jump (if statement)
+		} cjmp_inst;
+
+		struct
+		{
+			int var_index;
+		} input_inst;
+
+		struct
+		{
+			int var_index;
+		} output_inst;
+	};
+	struct InstructionNode *next;
+};
+
+// initialize lexer object
 Parser parser;
 
 // syntax error function
 void Parser::syntax_error()
 {
-    cout << "SYNTAX ERROR !!!\n";
-    exit(1);
+	cout << "SYNTAX ERROR !!!\n";
+	exit(1);
 }
 
 // this function gets a token and checks if it is
@@ -43,17 +103,18 @@ void Parser::syntax_error()
 // Written by Mohsen Zohrevandi
 Token Parser::expect(TokenType expected_type)
 {
-    //get token
-    Token t = lexer.GetToken();
+	// get token
+	Token t = lexer.GetToken();
 
-    if (t.token_type != expected_type)
-        {
-            syntax_error();
-        }
-    return t;
+	if (t.token_type != expected_type)
+	{
+		syntax_error();
+	}
+
+	return t;
 }
 
-//program -> var_section body inputs
+// program -> var_section body inputs
 void Parser::parse_program()
 {
 	parse_varSection();
@@ -62,10 +123,12 @@ void Parser::parse_program()
 
 	parse_inputs();
 
+
+	// returns but ignore since SYNTAX ERRORS will crash the program
 	expect(END_OF_FILE);
 }
 
-//var_section -> id_list SEMICOLON
+// var_section -> id_list SEMICOLON
 void Parser::parse_varSection()
 {
 	parse_idList();
@@ -73,24 +136,23 @@ void Parser::parse_varSection()
 	expect(SEMICOLON);
 }
 
-//id_list -> ID COMMA id_list | ID
+// id_list -> ID COMMA id_list | ID
 void Parser::parse_idList()
 {
 	expect(ID);
 
-	//peek at the next token
+	// peek at the next token
 	Token t = lexer.peek(1);
 
-	if(t.token_type == COMMA)
+	if (t.token_type == COMMA)
 	{
 		expect(COMMA);
 
 		parse_idList();
 	}
-	
 }
 
-//body -> LBRACE stmt_list RBRACE
+// body -> LBRACE stmt_list RBRACE
 void Parser::parse_body()
 {
 	expect(LBRACE);
@@ -100,88 +162,88 @@ void Parser::parse_body()
 	expect(RBRACE);
 }
 
-//stmt_list -> stmt stmt_list stmt
+// stmt_list -> stmt stmt_list stmt
 void Parser::parse_stmtList()
 {
 	parse_stmt();
 
-	//peek at the next token
+	// peek at the next token
 	Token t = lexer.peek(1);
 
-	//check if there is a statement list
-	if(t.token_type == ID ||
-	t.token_type == WHILE ||
-	t.token_type == IF ||
-	t.token_type == INPUT ||
-	t.token_type == SWITCH ||
-	t.token_type == OUTPUT ||
-	t.token_type == FOR)
+	// check if there is a statement list
+	if (t.token_type == ID ||
+		t.token_type == WHILE ||
+		t.token_type == IF ||
+		t.token_type == INPUT ||
+		t.token_type == SWITCH ||
+		t.token_type == OUTPUT ||
+		t.token_type == FOR)
 	{
 		parse_stmtList();
 	}
 }
 
-//stmt -> assign_stmt | while_stmt | if_stmt | for_statemnt
-//stmt -> output_stmt | input_stmt
+// stmt -> assign_stmt | while_stmt | if_stmt | for_statemnt
+// stmt -> output_stmt | input_stmt
 void Parser::parse_stmt()
 {
 	Token t = lexer.peek(1);
 
-	//if ID then parse assign_stmt
-	if(t.token_type == ID)
+	// if ID then parse assign_stmt
+	if (t.token_type == ID)
 	{
 		parse_assignStmt();
 	}
-	//if WHILE parse while statement
-	else if(t.token_type == WHILE)
+	// if WHILE parse while statement
+	else if (t.token_type == WHILE)
 	{
 		parse_whileStmt();
 	}
-	//if IF parse if statement
-	else if(t.token_type == IF)
+	// if IF parse if statement
+	else if (t.token_type == IF)
 	{
 		parse_ifStmt();
 	}
-	//if INPUT parse input statement
-	else if(t.token_type == INPUT)
+	// if INPUT parse input statement
+	else if (t.token_type == INPUT)
 	{
 		parse_inputStmt();
 	}
-	//if SWITCH parse swtich statement
-	else if(t.token_type == SWITCH)
+	// if SWITCH parse swtich statement
+	else if (t.token_type == SWITCH)
 	{
 		parse_switchStmt();
 	}
-	//if OUTPUT then parse output statement
-	else if(t.token_type == OUTPUT)
+	// if OUTPUT then parse output statement
+	else if (t.token_type == OUTPUT)
 	{
 		parse_outputStmt();
 	}
-	//if FOR parse for statement
-	else if(t.token_type == FOR)
+	// if FOR parse for statement
+	else if (t.token_type == FOR)
 	{
 		parse_forStmt();
 	}
 }
 
-//assign_stmt -> ID EQUAL primary SEMICOLON
-//assign_stmt -> ID EQUAL expr SEMICOLON
+// assign_stmt -> ID EQUAL primary SEMICOLON
+// assign_stmt -> ID EQUAL expr SEMICOLON
 void Parser::parse_assignStmt()
 {
 	expect(ID);
 
 	expect(EQUAL);
 
-	//always parse a primary
+	// always parse a primary
 	parse_primary();
 
-	//peek to see if we need to parse an expression
+	// peek to see if we need to parse an expression
 	Token t = lexer.peek(1);
 
-	//check if there is an operator (meaning you are parsing an expression)
-	if(t.token_type == PLUS || t.token_type == MINUS || t.token_type == MULT || t.token_type == DIV)
+	// check if there is an operator (meaning you are parsing an expression)
+	if (t.token_type == PLUS || t.token_type == MINUS || t.token_type == MULT || t.token_type == DIV)
 	{
-		//parse the rest of the expr
+		// parse the rest of the expr
 		parse_op();
 
 		parse_primary();
@@ -190,7 +252,7 @@ void Parser::parse_assignStmt()
 	expect(SEMICOLON);
 }
 
-//expr -> primary op primary
+// expr -> primary op primary
 void Parser::parse_expr()
 {
 	parse_primary();
@@ -200,37 +262,37 @@ void Parser::parse_expr()
 	parse_primary();
 }
 
-//primary -> ID | NUM
+// primary -> ID | NUM
 void Parser::parse_primary()
 {
 	Token t = lexer.peek(1);
 
-	if(t.token_type == ID)
+	if (t.token_type == ID)
 	{
 		expect(ID);
 	}
 	else
 	{
-		//otherwise expect a num and if its not it will syntax error
+		// otherwise expect a num and if its not it will syntax error
 		expect(NUM);
 	}
 }
 
-//op -> PLUS | MINUS | MULT | DIV
+// op -> PLUS | MINUS | MULT | DIV
 void Parser::parse_op()
 {
 	Token t = lexer.peek(1);
 
-	//check if there is an operator (meaning you are parsing an expression)
-	if(t.token_type == MINUS)
+	// check if there is an operator (meaning you are parsing an expression)
+	if (t.token_type == MINUS)
 	{
 		expect(MINUS);
 	}
-	else if(t.token_type == PLUS)
+	else if (t.token_type == PLUS)
 	{
 		expect(PLUS);
 	}
-	else if(t.token_type == MULT)
+	else if (t.token_type == MULT)
 	{
 		expect(MULT);
 	}
@@ -240,7 +302,7 @@ void Parser::parse_op()
 	}
 }
 
-//output_stmt -> output ID SEMICOLON
+// output_stmt -> output ID SEMICOLON
 void Parser::parse_outputStmt()
 {
 	expect(OUTPUT);
@@ -250,7 +312,7 @@ void Parser::parse_outputStmt()
 	expect(SEMICOLON);
 }
 
-//input_stmt -> input ID SEMICOLON
+// input_stmt -> input ID SEMICOLON
 void Parser::parse_inputStmt()
 {
 	expect(INPUT);
@@ -260,7 +322,7 @@ void Parser::parse_inputStmt()
 	expect(SEMICOLON);
 }
 
-//while_stmt -> while condition body
+// while_stmt -> while condition body
 void Parser::parse_whileStmt()
 {
 	expect(WHILE);
@@ -270,7 +332,7 @@ void Parser::parse_whileStmt()
 	parse_body();
 }
 
-//if_stmt -> IF condition body
+// if_stmt -> IF condition body
 void Parser::parse_ifStmt()
 {
 	expect(IF);
@@ -280,7 +342,7 @@ void Parser::parse_ifStmt()
 	parse_body();
 }
 
-//condition -> primary relop primary
+// condition -> primary relop primary
 void Parser::parse_condition()
 {
 	parse_primary();
@@ -290,16 +352,16 @@ void Parser::parse_condition()
 	parse_primary();
 }
 
-//relop -> GREATER | LESS | NOTEQUAL
+// relop -> GREATER | LESS | NOTEQUAL
 void Parser::parse_relop()
 {
 	Token t = lexer.peek(1);
 
-	if(t.token_type == GREATER)
+	if (t.token_type == GREATER)
 	{
 		expect(GREATER);
 	}
-	else if(t.token_type == LESS)
+	else if (t.token_type == LESS)
 	{
 		expect(LESS);
 	}
@@ -309,8 +371,8 @@ void Parser::parse_relop()
 	}
 }
 
-//switch_stmt -> SWITCH ID LBRACE case_list RBRACE
-//switch_stmt -> SWITCH ID LBRACE case_list default_case RBRACE
+// switch_stmt -> SWITCH ID LBRACE case_list RBRACE
+// switch_stmt -> SWITCH ID LBRACE case_list default_case RBRACE
 void Parser::parse_switchStmt()
 {
 	expect(SWITCH);
@@ -323,7 +385,7 @@ void Parser::parse_switchStmt()
 
 	Token t = lexer.peek(1);
 
-	if(t.token_type == DEFAULT)
+	if (t.token_type == DEFAULT)
 	{
 		parse_defaultCase();
 	}
@@ -331,7 +393,7 @@ void Parser::parse_switchStmt()
 	expect(RBRACE);
 }
 
-//for_stmt -> FOR LPAREN assign_stmt condition SEMICOLON assign_stmt RPAREN body
+// for_stmt -> FOR LPAREN assign_stmt condition SEMICOLON assign_stmt RPAREN body
 void Parser::parse_forStmt()
 {
 	expect(FOR);
@@ -351,21 +413,21 @@ void Parser::parse_forStmt()
 	parse_body();
 }
 
-//case_list -> case case_list | case
+// case_list -> case case_list | case
 void Parser::parse_caseList()
 {
 	parse_case();
 
 	Token t = lexer.peek(1);
 
-	//check if there is a case_list
-	if(t.token_type == CASE)
+	// check if there is a case_list
+	if (t.token_type == CASE)
 	{
 		parse_caseList();
 	}
 }
 
-//case -> CASE NUM COLON body
+// case -> CASE NUM COLON body
 void Parser::parse_case()
 {
 	expect(CASE);
@@ -377,7 +439,7 @@ void Parser::parse_case()
 	parse_body();
 }
 
-//default_case -> DEFAULT COLON body
+// default_case -> DEFAULT COLON body
 void Parser::parse_defaultCase()
 {
 	expect(DEFAULT);
@@ -387,29 +449,28 @@ void Parser::parse_defaultCase()
 	parse_body();
 }
 
-//inputs -> num_list
+// inputs -> num_list
 void Parser::parse_inputs()
 {
 	parse_numList();
 }
 
-//num_list -> NUM
-//num_list -> NUM num_list
+// num_list -> NUM
+// num_list -> NUM num_list
 void Parser::parse_numList()
 {
 	expect(NUM);
 
 	Token t = lexer.peek(1);
 
-	//check if there is a num_list
-	if(t.token_type == NUM)
+	// check if there is a num_list
+	if (t.token_type == NUM)
 	{
 		parse_numList();
 	}
 }
 
-int main (int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	return 0;
 }
-
