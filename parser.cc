@@ -30,61 +30,6 @@ using namespace std;
 // vector to store the values assigned in the input
 vector<int> inputs;
 
-struct LinkedList
-{
-	struct InstructionNode* instruction;
-	struct InstructionNode* nextInstruction;
-};
-
-struct AssignmentInstruction
-{
-	int left_hand_side_index;
-	int opernd1_index;
-	int opernd2_index;
-
-	// operator
-	ArithmeticOperatorType op;
-};
-
-struct InstructionNode
-{
-	// ENUM -- NOOP, ASSIGN, JMP, CJMP (conditional jump), IN, OUT
-
-	InstructionType type; 
-
-	union
-	{
-		struct
-		{
-			int left_hand_side_index;
-			int opernd1_index;
-			int opernd2_index;
-			ArithmeticOperatorType op;
-		} assign_inst;
-
-		struct
-		{
-			// details below ???
-		} jmp_inst;
-
-		struct
-		{
-			// details below ????   conditional jump (if statement)
-		} cjmp_inst;
-
-		struct
-		{
-			int var_index;
-		} input_inst;
-
-		struct
-		{
-			int var_index;
-		} output_inst;
-	};
-	struct InstructionNode *next;
-};
-
 // initialize lexer object
 Parser parser;
 
@@ -123,7 +68,6 @@ void Parser::parse_program()
 
 	parse_inputs();
 
-
 	// returns but ignore since SYNTAX ERRORS will crash the program
 	expect(END_OF_FILE);
 }
@@ -153,7 +97,7 @@ void Parser::parse_idList()
 }
 
 // body -> LBRACE stmt_list RBRACE
-void Parser::parse_body()
+struct InstructionNode* Parser::parse_body()
 {
 	expect(LBRACE);
 
@@ -163,9 +107,15 @@ void Parser::parse_body()
 }
 
 // stmt_list -> stmt stmt_list stmt
-void Parser::parse_stmtList()
+struct InstructionNode* Parser::parse_stmtList()
 {
-	parse_stmt();
+	//instruction for one statement
+	struct InstructionNode* inst; 
+
+	//instruction list for statement list
+	struct InstructionNode* instList;
+
+	inst = parse_stmt();
 
 	// peek at the next token
 	Token t = lexer.peek(1);
@@ -185,14 +135,18 @@ void Parser::parse_stmtList()
 
 // stmt -> assign_stmt | while_stmt | if_stmt | for_statemnt
 // stmt -> output_stmt | input_stmt
-void Parser::parse_stmt()
+struct InstructionNode* Parser::parse_stmt()
 {
+	//initialize new instruction
+	InstructionNode * inst = nullptr;
+
 	Token t = lexer.peek(1);
 
 	// if ID then parse assign_stmt
 	if (t.token_type == ID)
 	{
-		parse_assignStmt();
+		//initialize the next instruction for an assignment statement
+		inst = parse_assignStmt();
 	}
 	// if WHILE parse while statement
 	else if (t.token_type == WHILE)
@@ -224,13 +178,28 @@ void Parser::parse_stmt()
 	{
 		parse_forStmt();
 	}
+
+	return inst;
 }
 
 // assign_stmt -> ID EQUAL primary SEMICOLON
 // assign_stmt -> ID EQUAL expr SEMICOLON
-void Parser::parse_assignStmt()
+struct InstructionNode* Parser::parse_assignStmt()
 {
-	expect(ID);
+
+	//initialize new instruction
+	InstructionNode * inst = new InstructionNode;
+
+	Token tempToken = expect(ID);
+
+	//initialize type for instruction
+	inst->type = ASSIGN;
+
+	//initialize struct
+	inst->assign_inst.left_hand_side_index;
+    inst->assign_inst.opernd1_index; 
+    inst->assign_inst.opernd2_index;    
+    inst->assign_inst.op;
 
 	expect(EQUAL);
 
@@ -303,7 +272,7 @@ void Parser::parse_op()
 }
 
 // output_stmt -> output ID SEMICOLON
-void Parser::parse_outputStmt()
+struct InstructionNode* Parser::parse_outputStmt()
 {
 	expect(OUTPUT);
 
@@ -313,7 +282,7 @@ void Parser::parse_outputStmt()
 }
 
 // input_stmt -> input ID SEMICOLON
-void Parser::parse_inputStmt()
+struct InstructionNode* Parser::parse_inputStmt()
 {
 	expect(INPUT);
 
@@ -323,7 +292,7 @@ void Parser::parse_inputStmt()
 }
 
 // while_stmt -> while condition body
-void Parser::parse_whileStmt()
+struct InstructionNode* Parser::parse_whileStmt()
 {
 	expect(WHILE);
 
@@ -333,7 +302,7 @@ void Parser::parse_whileStmt()
 }
 
 // if_stmt -> IF condition body
-void Parser::parse_ifStmt()
+struct InstructionNode* Parser::parse_ifStmt()
 {
 	expect(IF);
 
@@ -373,7 +342,7 @@ void Parser::parse_relop()
 
 // switch_stmt -> SWITCH ID LBRACE case_list RBRACE
 // switch_stmt -> SWITCH ID LBRACE case_list default_case RBRACE
-void Parser::parse_switchStmt()
+struct InstructionNode* Parser::parse_switchStmt()
 {
 	expect(SWITCH);
 
@@ -394,7 +363,7 @@ void Parser::parse_switchStmt()
 }
 
 // for_stmt -> FOR LPAREN assign_stmt condition SEMICOLON assign_stmt RPAREN body
-void Parser::parse_forStmt()
+struct InstructionNode* Parser::parse_forStmt()
 {
 	expect(FOR);
 

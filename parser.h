@@ -21,31 +21,29 @@ class Parser {
     Token expect(TokenType expected_type);
     void syntax_error();
   private:
+    struct InstructionNode* parse_body();
+    struct InstructionNode* parse_stmtList();
+    struct InstructionNode* parse_stmt();
     void parse_program();
     void parse_varSection();
     void parse_idList();
-    void parse_body();
-    void parse_stmtList();
-    void parse_stmt();
-    void parse_assignStmt();
+    struct InstructionNode* parse_assignStmt();
     void parse_expr();
     void parse_primary();
     void parse_op();
-    void parse_outputStmt();
-    void parse_inputStmt();
-    void parse_whileStmt();
-    void parse_ifStmt();
+    struct InstructionNode* parse_outputStmt();
+    struct InstructionNode* parse_inputStmt();
+    struct InstructionNode* parse_whileStmt();
+    struct InstructionNode* parse_ifStmt();
     void parse_condition();
     void parse_relop();
-    void parse_switchStmt();
-    void parse_forStmt();
+    struct InstructionNode* parse_switchStmt();
+    struct InstructionNode* parse_forStmt();
     void parse_caseList();
     void parse_case();
     void parse_defaultCase();
     void parse_inputs();
     void parse_numList();
-
-
 };
 
 #endif

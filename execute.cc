@@ -33,6 +33,31 @@ void debug(const char* format, ...)
     }
 }
 
+//locates a variable name within the mem integer array
+int location(string varName)
+{
+    return 0;
+}
+
+struct InstructionNode * parse_Generate_Intermediate_Representation()
+{
+    /*
+    NOTE:
+
+    You need to write a function with the above signature. This function
+    is supposed to parse the input program and generate an intermediate
+    representation for it. The output of this function is passed to the
+    execute_program function in main().
+
+    Write your code in a separate file and include this header file in
+    your code.
+    */
+
+   struct InstructionNode * pc = nullptr;
+
+   return pc;
+}
+
 void execute_program(struct InstructionNode * program)
 {
     struct InstructionNode * pc = program;

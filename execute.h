@@ -41,6 +41,7 @@ enum InstructionType
 
 struct InstructionNode
 {
+    //TYPES:   NOOP, ASSIGN, JMP, CJMP (conditional jump), IN, OUT
     InstructionType type;
 
     union
@@ -56,6 +57,7 @@ struct InstructionNode
              * Otherwise both opernds are meaningful
              */
             ArithmeticOperatorType op;
+
         } assign_inst;
         
         struct
@@ -69,13 +71,18 @@ struct InstructionNode
         } output_inst;
         
         struct {
+
             ConditionalOperatorType condition_op;
             int opernd1_index;
             int opernd2_index;
+
+            //instruction to jump to
             struct InstructionNode * target;
+
         } cjmp_inst;
         
         struct {
+            //instruction to jump to
             struct InstructionNode * target;
         } jmp_inst;
   
@@ -89,18 +96,11 @@ void debug(const char* format, ...);
 //---------------------------------------------------------
 // You should write the following function:
 
+//locates a variable name within the mem integer array
+int location(std::string varName);
+
 struct InstructionNode * parse_Generate_Intermediate_Representation();
 
-/*
-  NOTE:
 
-  You need to write a function with the above signature. This function
-  is supposed to parse the input program and generate an intermediate
-  representation for it. The output of this function is passed to the
-  execute_program function in main().
-
-  Write your code in a separate file and include this header file in
-  your code.
-*/
 
 #endif /* _COMPILER_H_ */
